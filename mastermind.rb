@@ -40,52 +40,34 @@ class Board
 end
 
 class Code
-  attr_reader :code
+
+  attr_accessor :code
+  attr_reader :COLORS
+
   COLORS = %w[R B Y G W P]
-  def initialize
-    @code = code_generate
+
+  def initialize(code = code_generate)
+    @code = code
   end
 
   def code_generate
     arr = []
     for i in 1..4
-      arr.push(COLORS[(rand(5)+1)])
+      arr.push(COLORS[(rand(COLORS.length))])
     end
-    return arr
-  end
-end
-
-class Game
-  attr_accessor :guess, :response, :round_code
-  attr_reader :code, :board
-  def initialize(board, code)
-    @guess = []
-    @response = []
-    @board = board
-    @code = code.code
-    @round_code = []
+    arr
   end
 
-  def run()
-    round = 0
-    until round == 11
-      response = []
-      guess = get_guess
-      board.update_guesses(round, guess)
-      round_code = get_expend(code)
-      response = evaluate(guess, round_code)
-      board.update_response(round, response)
-      board.display_board
-      if response == %w[B B B B]
-        game_end(round)
-        break
-      end
-      round += 1
-    end
-    if round == 11
-      puts "You lose! The code was #{code.join(' ')}"
-    end
+  def evaluate(guess)
+    checks = []
+    temp_code = get_expend(code)
+    checks += check_exact(guess, temp_code)
+    checks += check_inexact(guess, temp_code)
+    checks.push('o') until checks.length == 4
+    checks
   end
+
+  # Private
 
   def get_expend(code)
     expend = []
@@ -93,42 +75,13 @@ class Game
     expend
   end
 
-  def get_guess
-    puts 'Please enter your guess!! Possible colors: R B Y G W P (Enter a space between each letter): '
-    input = gets.chomp
-    until valid_guess?(input)
-      puts 'Invalid guess!! Guess again:'
-      input = gets.chomp
-    end
-    input.split(' ')
-  end
-
-  def valid_guess?(input)
-   
-    valid = %w[R B Y G W P]
-    inputArr = input.split(" ")
-    invalid = inputArr.select {|let| !valid.include?(let)}
-    invalid.length.zero? && inputArr.length == 4
-  end
-
-  def evaluate(guess, round_code)
-    checks = []
-    checks += check_exact(guess, round_code)
-    checks += check_inexact(guess, round_code)
-    until checks.length == 4
-      checks.push('o')
-    end
-    checks
-  end
-
   def check_exact(guess, round_code)
     exacts = []
-    for i in 0..3
-      if guess[i] == round_code[i]
-        exacts.push('B')
-        guess[i] = ''
-        round_code[i] = ''
-      end
+    guess.each_with_index do |let, i|
+      next if let != round_code[i] 
+      exacts.push('B')
+      let = ''
+      round_code[i] = ''
     end
     exacts
   end
@@ -142,6 +95,54 @@ class Game
       end
     end
     inexacts
+  end
+
+end
+
+class Game
+  attr_accessor :guess, :response
+  attr_reader :code, :board
+  def initialize(board, code)
+    @guess = []
+    @response = []
+    @board = board
+    @code = code
+  end
+
+  def run()
+    round = 0
+    until round == 12
+      response = []
+      guess = get_guess
+      board.update_guesses(round, guess)
+      response = code.evaluate(guess)
+      board.update_response(round, response)
+      board.display_board
+      round += 1
+      if response == %w[B B B B]
+        game_end(round)
+        break
+      end 
+    end
+    if round == 12
+      puts "You lose! The code was #{code.code.join(' ')}"
+    end
+  end
+
+  def get_guess
+    puts 'Please enter your guess!! Possible colors: R B Y G W P: '
+    input = gets.chomp.upcase.split('')
+    until valid_guess?(input)
+      puts 'Invalid guess!! Guess again:'
+      input = gets.chomp.upcase.split('')
+    end
+    input
+  end
+
+  def valid_guess?(input)
+    valid = %w[R B Y G W P]
+    invalid = input.select {|let| !valid.include?(let)}
+    invalid.length.zero? && input.length == 4
   end
 
   def game_end(round)
